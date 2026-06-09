@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VidSave">
+<title>VidSave</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #060608;
+    --surface: #0f0f12;
+    --surface2: #17171c;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.11);
+    --text: #f2f2f5;
+    --muted: #55556a;
+    --muted2: #888899;
+    --accent: #7c6dfa;
+    --accent2: #a78bfa;
+    --green: #22d3a5;
+    --red: #ff5555;
+    --font: 'Outfit', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px 60px;
+    background-image: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(124,109,250,0.15) 0%, transparent 60%);
+  }
+  .wrap { width: 100%; max-width: 520px; }
+
+  .header { text-align: center; margin-bottom: 28px; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .logo-icon {
+    width: 46px; height: 46px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 8px 24px rgba(124,109,250,0.35);
+  }
+  .logo-name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-name span { color: var(--accent2); }
+  .tagline { font-size: 14px; color: var(--muted2); line-height: 1.5; }
+
+  .platforms {
+    display: flex; justify-content: center; gap: 6px;
+    flex-wrap: wrap; margin-top: 14px;
+  }
+  .pill {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    padding: 4px 12px; border-radius: 999px; border: 0.5px solid;
+  }
+  .pill-yt { background: rgba(255,0,51,0.08); border-color: rgba(255,0,51,0.25); color: #ff0033; }
+  .pill-tt { background: rgba(0,242,234,0.08); border-color: rgba(0,242,234,0.25); color: #00f2ea; }
+  .pill-ig { background: rgba(225,48,108,0.08); border-color: rgba(225,48,108,0.25); color: #e1306c; }
+  .pill-x  { background: rgba(231,231,231,0.06); border-color: rgba(231,231,231,0.15); color: #e7e7e7; }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+
+  .input-area { padding: 20px 20px 0; }
+  .input-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    font-family: var(--mono); margin-bottom: 10px; display: block;
+  }
+  .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .url-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    min-width: 0;
+  }
+  .url-input:focus { border-color: var(--accent); }
+  .url-input::placeholder { color: var(--muted); }
+  .btn-paste {
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 12px;
+    color: var(--muted2);
+    font-family: var(--font);
+    font-size: 13px; font-weight: 500;
+    padding: 0 16px; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .btn-paste:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .platform-detect {
+    display: none; align-items: center; gap: 8px;
+    padding: 0 20px 14px;
+    font-size: 12px; font-family: var(--mono); color: var(--muted2);
+  }
+  .platform-detect.show { display: flex; }
+  .detect-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .btn-download {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 14px;
+    color: #fff; font-family: var(--font);
+    font-size: 16px; font-weight: 700;
+    padding: 16px; cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 8px 24px rgba(124,109,250,0.3);
+  }
+  .btn-download:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-download:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .status {
+    display: none; margin: 0 20px 16px;
+    padding: 14px 16px; border-radius: 12px;
+    font-size: 13px; font-family: var(--mono);
+    align-items: center; gap: 10px; line-height: 1.5;
+  }
+  .status.show { display: flex; }
+  .status.loading { background: rgba(124,109,250,0.08); border: 0.5px solid rgba(124,109,250,0.2); color: var(--accent2); }
+  .status.error   { background: rgba(255,85,85,0.08);  border: 0.5px solid rgba(255,85,85,0.2);  color: var(--red); }
+  .status.success { background: rgba(34,211,165,0.08); border: 0.5px solid rgba(34,211,165,0.2); color: var(--green); }
+
+  .progress-wrap {
+    display: none; margin: 0 20px 16px;
+    background: var(--surface2); border-radius: 999px; height: 6px; overflow: hidden;
+  }
+  .progress-wrap.show { display: block; }
+  .progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 999px;
+    transition: width 0.3s ease;
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0%,100% { opacity: 1; } 50% { opacity: 0.6; }
+  }
+
+  .result-area { display: none; padding: 0 20px 20px; border-top: 0.5px solid var(--border); padding-top: 16px; }
+  .result-area.show { display: block; }
+  .result-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    font-family: var(--mono); margin-bottom: 12px;
+  }
+
+  .dl-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; background: var(--surface2);
+    border: 0.5px solid var(--border2); border-radius: 14px;
+    color: var(--text); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; width: 100%;
+    font-family: var(--font);
+  }
+  .dl-btn:active { border-color: var(--accent); background: rgba(124,109,250,0.08); }
+  .dl-btn-left { display: flex; align-items: center; gap: 12px; }
+  .dl-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; background: rgba(124,109,250,0.12); flex-shrink: 0;
+  }
+  .dl-sub { font-size: 12px; color: var(--muted2); font-family: var(--mono); margin-top: 2px; }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(124,109,250,0.3);
+    border-top-color: var(--accent2); border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .howto {
+    margin-top: 16px; background: var(--surface);
+    border: 0.5px solid var(--border); border-radius: 16px; padding: 18px 20px;
+  }
+  .howto-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--muted);
+    font-family: var(--mono); margin-bottom: 14px;
+  }
+  .howto-steps { display: flex; flex-direction: column; gap: 10px; }
+  .howto-step { display: flex; align-items: flex-start; gap: 12px; font-size: 13px; color: var(--muted2); line-height: 1.5; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--accent2);
+    flex-shrink: 0; font-family: var(--mono); margin-top: 1px;
+  }
+  .disclaimer {
+    text-align: center; font-size: 11px; color: var(--muted);
+    font-family: var(--mono); padding: 16px 0 0; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">⬇️</div>
+      <div class="logo-name">Vid<span>Save</span></div>
+    </div>
+    <p class="tagline">Ladda ner video med ljud — direkt till din enhet</p>
+    <div class="platforms">
+      <span class="pill pill-yt">▶ YouTube</span>
+      <span class="pill pill-tt">♪ TikTok</span>
+      <span class="pill pill-ig">◎ Instagram</span>
+      <span class="pill pill-x">✕ X</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="input-area">
+      <span class="input-label">Klistra in länk</span>
+      <div class="input-row">
+        <input type="url" class="url-input" id="urlInput"
+          placeholder="https://..."
+          autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <button class="btn-paste" onclick="pasteUrl()">Klistra</button>
+      </div>
+    </div>
+
+    <div class="platform-detect" id="platformDetect">
+      <span class="detect-dot" id="detectDot"></span>
+      <span id="detectText"></span>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+
+    <button class="btn-download" id="btnDownload" onclick="startDownload()">
+      Ladda ner video
+    </button>
+
+    <div class="result-area" id="resultArea">
+      <div class="result-label">Klar att ladda ner</div>
+      <div id="resultContent"></div>
+    </div>
+  </div>
+
+  <div class="howto">
+    <div class="howto-title">Hur det fungerar på iPhone</div>
+    <div class="howto-steps">
+      <div class="howto-step"><span class="step-num">1</span><span>Öppna appen → tryck <strong>Dela</strong> → <strong>Kopiera länk</strong></span></div>
+      <div class="howto-step"><span class="step-num">2</span><span>Kom tillbaka hit → tryck <strong>Klistra</strong> → tryck <strong>Ladda ner video</strong></span></div>
+      <div class="howto-step"><span class="step-num">3</span><span>Filen laddas ner direkt till din <strong>Filer-app</strong> eller <strong>Foton</strong></span></div>
+    </div>
+  </div>
+
+  <p class="disclaimer">Använd endast för innehåll du har rätt att ladda ner.</p>
+</div>
+
+<script>
+const urlInput = document.getElementById('urlInput');
+urlInput.addEventListener('input', detectPlatform);
+urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') startDownload(); });
+
+function detectPlatform() {
+  const url = urlInput.value.trim();
+  const el = document.getElementById('platformDetect');
+  const dot = document.getElementById('detectDot');
+  const txt = document.getElementById('detectText');
+  if (!url) { el.classList.remove('show'); return; }
+  let p = null;
+  if (url.includes('youtube.com') || url.includes('youtu.be')) p = { name: 'YouTube', color: '#ff0033' };
+  else if (url.includes('tiktok.com')) p = { name: 'TikTok', color: '#00f2ea' };
+  else if (url.includes('instagram.com')) p = { name: 'Instagram', color: '#e1306c' };
+  else if (url.includes('twitter.com') || url.includes('x.com')) p = { name: 'X / Twitter', color: '#e7e7e7' };
+  if (p) { dot.style.background = p.color; txt.textContent = p.name + ' länk'; el.classList.add('show'); }
+  else { dot.style.background = '#666'; txt.textContent = 'Okänd plattform'; el.classList.add('show'); }
+}
+
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    urlInput.value = text;
+    detectPlatform();
+  } catch(e) { urlInput.focus(); }
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('status');
+  if (type === 'loading') {
+    el.innerHTML = `<span class="spinner"></span><span>${msg}</span>`;
+  } else {
+    el.innerHTML = `<span>${type === 'error' ? '⚠️' : '✓'}</span><span>${msg}</span>`;
+  }
+  el.className = 'status show ' + type;
+}
+
+function hideStatus() { document.getElementById('status').className = 'status'; }
+
+async function startDownload() {
+  const url = urlInput.value.trim();
+  if (!url) { showStatus('error', 'Klistra in en länk först!'); return; }
+
+  const btn = document.getElementById('btnDownload');
+  btn.disabled = true;
+  btn.textContent = 'Hämtar...';
+  document.getElementById('resultArea').classList.remove('show');
+  showStatus('loading', 'Hämtar video... kan ta 10–30 sekunder');
+
+  const prog = document.getElementById('progressWrap');
+  const bar = document.getElementById('progressBar');
+  prog.classList.add('show');
+  bar.style.width = '10%';
+  let progress = 10;
+  const timer = setInterval(() => {
+    if (progress < 85) { progress += 5; bar.style.width = progress + '%'; }
+  }, 1500);
+
+  try {
+    const response = await fetch('/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    clearInterval(timer);
+
+    if (!response.ok) {
+      const err = await response.json();
+      showStatus('error', err.error || 'Något gick fel.');
+      prog.classList.remove('show');
+      btn.disabled = false;
+      btn.textContent = 'Ladda ner video';
+      return;
+    }
+
+    bar.style.width = '100%';
+
+    // Get filename from header
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = 'video.mp4';
+    if (disposition) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match) filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
+    }
+
+    const blob = await response.blob();
+    const dlUrl = URL.createObjectURL(blob);
+
+    // Show download button
+    const resultArea = document.getElementById('resultArea');
+    document.getElementById('resultContent').innerHTML = `
+      <a class="dl-btn" href="${dlUrl}" download="${filename}">
+        <div class="dl-btn-left">
+          <div class="dl-icon">🎬</div>
+          <div>
+            <div>${filename}</div>
+            <div class="dl-sub">MP4 · Tryck för att spara</div>
+          </div>
+        </div>
+        <span style="color:var(--accent2);font-size:20px;">↓</span>
+      </a>
+      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);padding:10px 4px 0;line-height:1.6;">
+        💡 iPhone: Tryck länge → "Ladda ner länkad fil" → sparas i Filer-appen
+      </div>
+    `;
+    resultArea.classList.add('show');
+    showStatus('success', 'Klar! Tryck på knappen nedan för att spara.');
+    setTimeout(() => prog.classList.remove('show'), 500);
+
+  } catch(e) {
+    clearInterval(timer);
+    showStatus('error', 'Serverfel — försök igen.');
+    prog.classList.remove('show');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Ladda ner video';
+}
+</script>
+</body>
+</html>
