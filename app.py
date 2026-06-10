@@ -7,6 +7,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SUPPORTED = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'x.com', 'twitter.com']
 
@@ -15,7 +16,7 @@ def is_supported(url):
 
 @app.route('/')
 def index():
-    return send_file('index.html')
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -30,41 +31,42 @@ def download():
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            output_template = os.path.join(tmpdir, '%(title)s.%(ext)s')
+            output_template = os.path.join(tmpdir, 'video.%(ext)s')
 
             cmd = [
                 'yt-dlp',
                 '--no-playlist',
+                '-f', 'bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best',
                 '--merge-output-format', 'mp4',
-                '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                '--postprocessor-args', 'ffmpeg:-c:v libx264 -c:a aac -movflags +faststart',
                 '-o', output_template,
                 '--no-warnings',
+                '--no-check-certificates',
                 url
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                # Clean up error message
-                if 'Private video' in error_msg:
+                if 'Private' in error_msg:
                     return jsonify({'error': 'Videon är privat och kan inte laddas ner.'}), 400
-                elif 'Login' in error_msg or 'login' in error_msg:
+                elif 'login' in error_msg.lower():
                     return jsonify({'error': 'Videon kräver inloggning.'}), 400
+                elif 'twitter' in url or 'x.com' in url:
+                    return jsonify({'error': 'X/Twitter kräver ofta inloggning för att ladda ner. Prova en annan video.'}), 400
                 else:
-                    return jsonify({'error': 'Kunde inte ladda ner videon. Kontrollera länken.'}), 400
+                    return jsonify({'error': 'Kunde inte ladda ner videon. Kontrollera länken och försök igen.'}), 400
 
             # Find downloaded file
-            files = os.listdir(tmpdir)
+            files = [f for f in os.listdir(tmpdir) if f.endswith('.mp4')]
+            if not files:
+                files = os.listdir(tmpdir)
             if not files:
                 return jsonify({'error': 'Filen hittades inte efter nedladdning.'}), 500
 
             filepath = os.path.join(tmpdir, files[0])
-            filename = files[0]
-            # Clean filename
-            filename = re.sub(r'[^\w\s\-.]', '', filename).strip()
-            if not filename.endswith('.mp4'):
-                filename += '.mp4'
+            filename = 'video.mp4'
 
             return send_file(
                 filepath,
@@ -74,7 +76,7 @@ def download():
             )
 
     except subprocess.TimeoutExpired:
-        return jsonify({'error': 'Timeout — videon tog för lång tid att ladda ner.'}), 500
+        return jsonify({'error': 'Timeout — videon tog för lång tid. Prova en kortare video.'}), 500
     except Exception as e:
         return jsonify({'error': f'Serverfel: {str(e)}'}), 500
 
