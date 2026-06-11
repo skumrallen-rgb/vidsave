@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-import re
+import json
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
@@ -18,6 +18,33 @@ def is_supported(url):
 def index():
     return send_file(os.path.join(BASE_DIR, 'index.html'))
 
+@app.route('/checklive', methods=['POST'])
+def check_live():
+    data = request.get_json()
+    handles = data.get('handles', [])
+    results = {}
+    for handle in handles:
+        handle = handle.strip().lstrip('@')
+        url = f'https://www.tiktok.com/@{handle}/live'
+        try:
+            cmd = ['yt-dlp', '--no-warnings', '--no-playlist', '--skip-download',
+                   '--dump-json', '--no-check-certificates', url]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    info = json.loads(result.stdout.strip().split('\n')[0])
+                    is_live = info.get('is_live', False) or info.get('live_status') == 'is_live'
+                    results[handle] = 'live' if is_live else 'offline'
+                except:
+                    results[handle] = 'offline'
+            else:
+                results[handle] = 'offline'
+        except subprocess.TimeoutExpired:
+            results[handle] = 'offline'
+        except Exception:
+            results[handle] = 'error'
+    return jsonify(results)
+
 @app.route('/download', methods=['POST'])
 def download():
     data = request.get_json()
@@ -27,51 +54,48 @@ def download():
         return jsonify({'error': 'Ingen URL angiven'}), 400
 
     if not is_supported(url):
-        return jsonify({'error': 'Plattformen stöds inte. Använd YouTube, TikTok, Instagram eller X.'}), 400
+        return jsonify({'error': 'Plattformen stöds inte.'}), 400
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_template = os.path.join(tmpdir, 'video.%(ext)s')
 
+            # No ffmpeg conversion — download best mp4 directly to save memory
             cmd = [
                 'yt-dlp',
                 '--no-playlist',
-                '-f', 'bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best',
-                '--merge-output-format', 'mp4',
-                '--postprocessor-args', 'ffmpeg:-c:v libx264 -c:a aac -movflags +faststart',
+                '-f', 'best[ext=mp4]/best',
                 '-o', output_template,
                 '--no-warnings',
                 '--no-check-certificates',
+                '--socket-timeout', '30',
                 url
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
                 if 'Private' in error_msg:
-                    return jsonify({'error': 'Videon är privat och kan inte laddas ner.'}), 400
+                    return jsonify({'error': 'Videon är privat.'}), 400
                 elif 'login' in error_msg.lower():
                     return jsonify({'error': 'Videon kräver inloggning.'}), 400
-                elif 'twitter' in url or 'x.com' in url:
-                    return jsonify({'error': 'X/Twitter kräver ofta inloggning för att ladda ner. Prova en annan video.'}), 400
                 else:
-                    return jsonify({'error': 'Kunde inte ladda ner videon. Kontrollera länken och försök igen.'}), 400
+                    return jsonify({'error': 'Kunde inte ladda ner. Kontrollera länken.'}), 400
 
-            # Find downloaded file
-            files = [f for f in os.listdir(tmpdir) if f.endswith('.mp4')]
+            files = os.listdir(tmpdir)
             if not files:
-                files = os.listdir(tmpdir)
-            if not files:
-                return jsonify({'error': 'Filen hittades inte efter nedladdning.'}), 500
+                return jsonify({'error': 'Filen hittades inte.'}), 500
 
-            filepath = os.path.join(tmpdir, files[0])
-            filename = 'video.mp4'
+            # Prefer mp4 but take whatever we got
+            mp4_files = [f for f in files if f.endswith('.mp4')]
+            filename = mp4_files[0] if mp4_files else files[0]
+            filepath = os.path.join(tmpdir, filename)
 
             return send_file(
                 filepath,
                 as_attachment=True,
-                download_name=filename,
+                download_name='video.mp4',
                 mimetype='video/mp4'
             )
 
